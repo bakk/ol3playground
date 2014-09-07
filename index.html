@@ -22,34 +22,57 @@
             background: white;
             left: 40px;
         }
+
+        .ol-popup {
+          display: none;
+          position: absolute;
+          background-color: white;
+          -moz-box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+          -webkit-filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+          filter: drop-shadow(0 1px 4px rgba(0,0,0,0.2));
+          padding: 6px;
+          border-radius: 10px;
+          border: 1px solid #cccccc;
+          bottom: 5px;
+          left: -50px;
+        }
+        .ol-popup:after, .ol-popup:before {
+          top: 100%;
+          border: solid transparent;
+          content: " ";
+          height: 0;
+          width: 0;
+          position: absolute;
+          pointer-events: none;
+        }
+        .ol-popup:after {
+          border-top-color: white;
+          border-width: 10px;
+          left: 48px;
+          margin-left: -10px;
+        }
+        .ol-popup:before {
+          border-top-color: #cccccc;
+          border-width: 11px;
+          left: 48px;
+          margin-left: -11px;
+        }
     </style>
     <body>
         <div id="info" class="infobox"></div>
-        <div id="map" class="map_fullscreen"></div>
+        <div id="map" class="map_fullscreen">
+            <div id="popup" class="ol-popup">
+                <div id="popup-content"></div>
+            </div>        
+        </div>
         <script src="http://openlayers.org/en/v3.0.0/build/ol.js" type="text/javascript"></script>
         <script src="http://code.jquery.com/jquery-2.1.1.min.js"></script>
         <script type="text/javascript">
 
-            var Mab = this.Mab || {};
-            (function (ns) {
+            (function () {
 
-                //this could (should?) be moved to a separate file
                 var ol3utils = window.ol3utils || {};
                 ol3utils.SkTiles = function (options) {
-                    /**
-                        Tiles from Statkart. Available layers are:
-                            - matrikkel_bakgrunn
-                            - topo2
-                            - topo2graatone 
-                            - europa
-                            - toporaster2
-                            - sjo_hovedkart2
-                            - kartdata2 
-                            - norges_grunnkart 
-                            - norges_grunnkart_graatone
-
-                        See http://statkart.no/Kart/Kartverksted/Visningstjenester/
-                    **/
                     return new ol.layer.Tile({
                         source: new ol.source.XYZ({
                             attributions: [
@@ -95,53 +118,49 @@
                     })
                 });
 
-                //actually set up the map
+                var container = document.getElementById('popup');
+                var content = document.getElementById('popup-content');
+
+                var overlay = new ol.Overlay({
+                    element: container
+                })
+
                 var map = new ol.Map({
                     target: 'map',
                     layers: [
                         new ol3utils.SkTiles({layers: "norges_grunnkart"}),
-                        /*new ol.layer.Image({
-                            source: new ol.source.ImageWMS({
-                                url: 'http://geo.barentswatch.no/geoserver/bw/wms?',
-                                params: {'LAYERS' : 'bw:waveforecast_area_iso_current'},
-                            })
-                        }),*/
                         wfsLayer
                     ],
+                    overlays: [overlay],
                     view: new ol.View({
                         center: ol.proj.transform([15, 64.5], 'EPSG:4326', 'EPSG:3857'),
                         zoom: 5
                     })
                 });
 
-                var displayFeatureInfo = function(pixel) {
+                $(map.getViewport()).on('mousemove', function(evt) {
+                  var pixel = map.getEventPixel(evt.originalEvent);
                   var feature = map.forEachFeatureAtPixel(pixel, function(feature, layer) {
                     return feature;
                   });
-
-                  var info = document.getElementById('info');
                   if (feature) {
+                    var position = map.getEventCoordinate(evt.originalEvent);
+                    overlay.setPosition(position);
                     var infotxt;
-                    var prop = feature.getProperties();
+                    /*var prop = feature.getProperties();
                     for (var key in prop) {
                         infotxt = infotxt + key + " : " + prop[key] + '<br>';
                     }
-                    info.innerHTML = "Feature: " + infotxt;
+                    */
+                    infotxt = feature.get('modelname') + ': ' + feature.get('hslocal');
+                    content.innerHTML = '<p style="margin:0;padding:0;text-align:center;">' + infotxt + '</p>';
+                    container.style.display = 'block';
                   } else {
-                    info.innerHTML = '&nbsp;';
+                    container.style.display = 'none';
                   }
-                };
-
-                $(map.getViewport()).on('mousemove', function(evt) {
-                  var pixel = map.getEventPixel(evt.originalEvent);
-                  displayFeatureInfo(pixel);
                 });
 
-                map.on('click', function(evt) {
-                  displayFeatureInfo(evt.pixel);
-                });
-
-            }(Mab));
+            }());
         </script>
     </body>
 </html>
